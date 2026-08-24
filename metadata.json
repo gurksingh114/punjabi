@@ -1,0 +1,6 @@
+{
+  "name": "Punjabi Toddler Fun",
+  "description": "Interactive Punjabi learning app for toddlers with Gurmukhi alphabet tracing, vocabulary audio, and fun educational games.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
