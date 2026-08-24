@@ -1,0 +1,166 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Fredoka', 'Nunito', sans-serif;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    background-color: #FDFBF7;
+    color: #1E293B;
+  }
+}
+
+.font-gurmukhi {
+  font-family: 'Noto Sans Gurmukhi', 'Baloo Paaji 2', sans-serif;
+}
+
+.font-baloo {
+  font-family: 'Baloo Paaji 2', 'Fredoka', cursive, sans-serif;
+}
+
+/* Modern Soft Joyful Buttons */
+.btn-primary {
+  background-color: #F59E0B;
+  color: #FFFFFF;
+  font-weight: 700;
+  border-radius: 1rem;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);
+  transition: all 0.18s ease;
+}
+.btn-primary:hover {
+  background-color: #D97706;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(245, 158, 11, 0.35);
+}
+.btn-primary:active {
+  transform: scale(0.97);
+}
+
+.btn-secondary {
+  background-color: #FFFFFF;
+  color: #334155;
+  border: 1.5px solid #E2E8F0;
+  font-weight: 700;
+  border-radius: 1rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  transition: all 0.18s ease;
+}
+.btn-secondary:hover {
+  background-color: #F8FAFC;
+  border-color: #CBD5E1;
+  transform: translateY(-1px);
+}
+.btn-secondary:active {
+  transform: scale(0.97);
+}
+
+.btn-success {
+  background-color: #10B981;
+  color: #FFFFFF;
+  font-weight: 700;
+  border-radius: 1rem;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+  transition: all 0.18s ease;
+}
+.btn-success:hover {
+  background-color: #059669;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.35);
+}
+.btn-success:active {
+  transform: scale(0.97);
+}
+
+.btn-blue {
+  background-color: #3B82F6;
+  color: #FFFFFF;
+  font-weight: 700;
+  border-radius: 1rem;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+  transition: all 0.18s ease;
+}
+.btn-blue:hover {
+  background-color: #2563EB;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.35);
+}
+.btn-blue:active {
+  transform: scale(0.97);
+}
+
+/* Backwards compatibility aliases with cleaner styling */
+.btn-bento, .btn-3d-yellow, .btn-bento-yellow {
+  background-color: #F59E0B;
+  color: #FFFFFF;
+  font-weight: 700;
+  border-radius: 1rem;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);
+  transition: all 0.18s ease;
+}
+.btn-bento:hover, .btn-3d-yellow:hover, .btn-bento-yellow:hover {
+  background-color: #D97706;
+  transform: translateY(-2px);
+}
+.btn-bento:active, .btn-3d-yellow:active, .btn-bento-yellow:active {
+  transform: scale(0.97);
+}
+
+.btn-3d-green, .btn-bento-green {
+  background-color: #10B981;
+  color: #FFFFFF;
+  font-weight: 700;
+  border-radius: 1rem;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+  transition: all 0.18s ease;
+}
+.btn-3d-green:hover, .btn-bento-green:hover {
+  background-color: #059669;
+  transform: translateY(-2px);
+}
+.btn-3d-green:active, .btn-bento-green:active {
+  transform: scale(0.97);
+}
+
+.btn-3d-blue, .btn-bento-blue {
+  background-color: #3B82F6;
+  color: #FFFFFF;
+  font-weight: 700;
+  border-radius: 1rem;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+  transition: all 0.18s ease;
+}
+
+.btn-3d-pink, .btn-bento-coral {
+  background-color: #F43F5E;
+  color: #FFFFFF;
+  font-weight: 700;
+  border-radius: 1rem;
+  box-shadow: 0 4px 12px rgba(244, 63, 94, 0.25);
+  transition: all 0.18s ease;
+}
+
+@keyframes floatSlow {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.animate-float-slow {
+  animation: floatSlow 3s ease-in-out infinite;
+}
+
+@keyframes pulseGently {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.04);
+  }
+}
+
+.animate-pulse-gentle {
+  animation: pulseGently 2s ease-in-out infinite;
+}
