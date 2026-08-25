@@ -53,7 +53,7 @@ export const ParentGuideModal: React.FC<ParentGuideModalProps> = ({ isOpen, onCl
                 ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ (Sat Sri Akal) & Welcome!
               </h4>
               <p className="text-xs sm:text-sm text-slate-600 mt-1 leading-relaxed">
-                This app is built for toddlers and early learners: Gurmukhi letters, spoken Punjabi with a warm teacher voice, finger tracing, and short games. Tap any letter or word to hear it.
+                This app is specifically crafted for toddlers and early learners to develop receptive and expressive vocabulary in Punjabi (Gurmukhi script and spoken vernacular) through multimodal learning: visual icons, auditory pronunciation, tactile finger-tracing, and joyful mini-games.
               </p>
             </div>
           </div>
@@ -115,10 +115,10 @@ export const ParentGuideModal: React.FC<ParentGuideModalProps> = ({ isOpen, onCl
                 <strong>Repeat Along Aloud:</strong> Encourage your toddler to mirror the spoken words immediately after pressing the audio button.
               </li>
               <li>
-                <strong>Point & Name in Daily Life:</strong> When eating an apple, say <em>"Eh saib ae (ਇਹ ਸੈਬ ਏ)!"</em> or when spotting a cow say <em>"Gaan (ਗਾਂ)!"</em> to ground vocabulary in real life.
+                <strong>Point & Name in Daily Life:</strong> When eating an apple, say <em>"Eh Seb hai (ਇਹ ਸੇਬ ਹੈ)!"</em> or when spotting a cow say <em>"Gaan (ਗਾਂ)!"</em> to ground vocabulary in real life.
               </li>
               <li>
-                <strong>Praise Effort Generously:</strong> Use authentic Punjabi praise phrases like <em>"Shabash! (ਸ਼ਾਬਾਸ਼!)"</em> and <em>"Bada Vadiya! (ਬੜਾ ਵਧੀਆ!)"</em>.
+                <strong>Praise Effort Generously:</strong> Use authentic Punjabi praise phrases like <em>"Shabash! (ਸ਼ਾਬਾਸ਼!)"</em> and <em>"Bohot Vadiya! (ਬਹੁਤ ਵਧੀਆ!)"</em>.
               </li>
             </ul>
           </div>
@@ -130,13 +130,13 @@ export const ParentGuideModal: React.FC<ParentGuideModalProps> = ({ isOpen, onCl
                 Test Punjabi Voice Synthesis:
               </span>
               <span className="text-[11px] text-slate-500">
-                Plays a Punjabi teacher voice: “ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ, ਬੜਾ ਵਧੀਆ!”
+                Plays "ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ, ਬਹੁਤ ਵਧੀਆ!"
               </span>
             </div>
 
             <button
               id="test-voice-btn"
-              onClick={() => speakPunjabi("ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ ਜੀ। [pause] ਬੜਾ ਵਧੀਆ!")}
+              onClick={() => speakPunjabi("ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ, ਬਹੁਤ ਵਧੀਆ!", 1.1, 0.8)}
               className="btn-primary px-3.5 py-1.5 rounded-xl text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer"
             >
               <Volume2 className="w-3.5 h-3.5" />

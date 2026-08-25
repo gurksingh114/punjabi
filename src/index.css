@@ -1,21 +1,5 @@
 @import "tailwindcss";
 
-@theme {
-  --color-paper: #f7f1e4;
-  --color-ink: #2c2416;
-  --color-muted: #7a7064;
-  --color-saffron: #c97820;
-  --color-saffron-dark: #9a5c16;
-  --color-teal: #2a6b63;
-  --color-white: #fffcf6;
-  --font-sans: "Nunito", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Baloo Paaji 2", "Nunito", cursive, sans-serif;
-  --font-gurmukhi: "Noto Sans Gurmukhi", "Baloo Paaji 2", sans-serif;
-  --shadow-card:
-    0 0 0 1px rgba(44, 36, 22, 0.06), 0 1px 2px -1px rgba(44, 36, 22, 0.06),
-    0 2px 6px 0 rgba(44, 36, 22, 0.04);
-}
-
 @layer base {
   body {
     font-family: 'Fredoka', 'Nunito', sans-serif;
@@ -32,21 +16,6 @@
 
 .font-baloo {
   font-family: 'Baloo Paaji 2', 'Fredoka', cursive, sans-serif;
-}
-
-.shadow-card {
-  box-shadow: var(--shadow-card);
-}
-
-.scrollbar-none {
-  scrollbar-width: none;
-}
-.scrollbar-none::-webkit-scrollbar {
-  display: none;
-}
-
-.speaking-pulse {
-  animation: pulseGently 1.2s ease-in-out infinite;
 }
 
 /* Modern Soft Joyful Buttons */

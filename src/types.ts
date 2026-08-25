@@ -14,8 +14,7 @@ export type GameType =
   | 'balloon-pop'
   | 'memory-match'
   | 'find-object'
-  | 'counting-safari'
-  | 'draw-guess';
+  | 'counting-safari';
 
 export interface GurmukhiLetter {
   id: string;

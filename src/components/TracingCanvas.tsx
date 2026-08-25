@@ -1,446 +1,307 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import confetti from "canvas-confetti";
-import {
-  RotateCcw,
-  Volume2,
-  ChevronLeft,
-  ChevronRight,
+import React, { useRef, useState, useEffect, useCallback } from 'react';
+import confetti from 'canvas-confetti';
+import { 
+  Sparkles, 
+  RotateCcw, 
+  Volume2, 
+  ChevronLeft, 
+  ChevronRight, 
+  Award, 
+  Palette, 
+  CheckCircle2,
   Play,
   Pause,
-  Sparkles,
-} from "lucide-react";
-import { GURMUKHI_LETTERS, GURMUKHI_NUMBERS } from "../data/punjabiData";
-import { GurmukhiLetter } from "../types";
-import {
-  playSparkle,
-  playSuccessChime,
-  playCelebration,
-  speakPunjabi,
-  speakLetterDetails,
-  playChime,
-  speakPraise,
-} from "../utils/audio";
+  Layers,
+  HelpCircle,
+  ArrowRight,
+  Eye,
+  EyeOff
+} from 'lucide-react';
+import { GURMUKHI_LETTERS, GURMUKHI_NUMBERS } from '../data/punjabiData';
+import { GurmukhiLetter, StrokeDirectionStep } from '../types';
+import { getStrokeDataForChar } from '../data/strokeDirections';
+import { 
+  playSparkle, 
+  playSuccessChime, 
+  playCelebration, 
+  speakPunjabi, 
+  playChime, 
+  speakPraise 
+} from '../utils/audio';
 
 interface TracingCanvasProps {
   initialLetter?: GurmukhiLetter | null;
   onTraceCompleted: (charName: string) => void;
 }
 
-type Pt = { x: number; y: number };
+const BRUSH_COLORS = [
+  { name: 'Amber Gold', color: '#f59e0b', bg: 'bg-amber-500' },
+  { name: 'Berry Pink', color: '#ec4899', bg: 'bg-pink-500' },
+  { name: 'Ocean Blue', color: '#3b82f6', bg: 'bg-blue-500' },
+  { name: 'Emerald Green', color: '#10b981', bg: 'bg-emerald-500' },
+  { name: 'Purple Star', color: '#8b5cf6', bg: 'bg-purple-500' },
+  { name: 'Coral Red', color: '#ef4444', bg: 'bg-red-500' },
+  { name: 'Rainbow Sparkle', color: 'rainbow', bg: 'bg-gradient-to-r from-red-500 via-yellow-500 to-blue-500' }
+];
 
-const CRAYONS = [
-  { id: "saffron", color: "#c97820", label: "Gold" },
-  { id: "teal", color: "#2a6b63", label: "Peacock" },
-  { id: "rose", color: "#c45c4a", label: "Clay" },
-] as const;
-
-function glyphFont(h: number) {
-  return `900 ${Math.floor(h * 0.72)}px "Noto Sans Gurmukhi", "Baloo Paaji 2", sans-serif`;
-}
-
-function drawGlyph(
-  ctx: CanvasRenderingContext2D,
-  char: string,
-  w: number,
-  h: number,
-  mode: "fill" | "stroke",
-  color: string,
-  lineWidth = 22,
-) {
-  ctx.save();
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.font = glyphFont(h);
-  ctx.lineJoin = "round";
-  ctx.lineCap = "round";
-  ctx.lineWidth = lineWidth;
-  const x = w / 2;
-  const y = h / 2 + h * 0.02;
-  if (mode === "fill") {
-    ctx.fillStyle = color;
-    ctx.fillText(char, x, y);
-  } else {
-    ctx.strokeStyle = color;
-    ctx.strokeText(char, x, y);
-  }
-  ctx.restore();
-}
-
-type Track = {
-  sil: HTMLCanvasElement;
-  count: number;
-  start: Pt;
-};
-
-function buildTrack(w: number, h: number, char: string): Track {
-  const sil = document.createElement("canvas");
-  sil.width = w;
-  sil.height = h;
-  const ctx = sil.getContext("2d")!;
-  ctx.clearRect(0, 0, w, h);
-  // Tight glyph only — no fat halo that fills in one swipe.
-  drawGlyph(ctx, char, w, h, "fill", "#000", 1);
-  drawGlyph(ctx, char, w, h, "stroke", "#000", 5);
-
-  const data = ctx.getImageData(0, 0, w, h).data;
-  let count = 0;
-  let minX = w;
-  let minY = h;
-  let maxX = 0;
-  let maxY = 0;
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const a = data[(y * w + x) * 4 + 3];
-      if (a > 24) {
-        count++;
-        if (x < minX) minX = x;
-        if (y < minY) minY = y;
-        if (x > maxX) maxX = x;
-        if (y > maxY) maxY = y;
-      }
-    }
-  }
-
-  // Suggested start: top of the real glyph, slightly left (typical Gurmukhi onset).
-  const targetX = minX + (maxX - minX) * 0.22;
-  const targetY = minY + (maxY - minY) * 0.12;
-  let start: Pt = { x: targetX, y: targetY };
-  let best = Infinity;
-  const band = Math.max(8, (maxY - minY) * 0.18);
-  for (let y = minY; y < minY + band && y < h; y++) {
-    for (let x = minX; x <= maxX; x++) {
-      const a = data[(y * w + x) * 4 + 3];
-      if (a <= 24) continue;
-      const d = (x - targetX) ** 2 + (y - targetY) ** 2;
-      if (d < best) {
-        best = d;
-        start = { x, y };
-      }
-    }
-  }
-
-  return { sil, count: Math.max(count, 1), start };
-}
-
-function coverage(ink: HTMLCanvasElement, track: Track) {
-  const w = ink.width;
-  const h = ink.height;
-  const inkData = ink.getContext("2d")!.getImageData(0, 0, w, h).data;
-  const silData = track.sil.getContext("2d")!.getImageData(0, 0, w, h).data;
-  const COLS = 10;
-  const ROWS = 10;
-  const cellW = w / COLS;
-  const cellH = h / ROWS;
-  let letterCells = 0;
-  let filledCells = 0;
-  for (let row = 0; row < ROWS; row++) {
-    for (let col = 0; col < COLS; col++) {
-      let sil = 0;
-      let hit = 0;
-      const x0 = Math.floor(col * cellW);
-      const y0 = Math.floor(row * cellH);
-      const x1 = Math.floor((col + 1) * cellW);
-      const y1 = Math.floor((row + 1) * cellH);
-      for (let y = y0; y < y1; y++) {
-        for (let x = x0; x < x1; x++) {
-          const a = silData[(y * w + x) * 4 + 3];
-          if (a <= 24) continue;
-          sil++;
-          if (inkData[(y * w + x) * 4 + 3] > 24) hit++;
-        }
-      }
-      if (sil < 18) continue;
-      letterCells++;
-      if (hit / sil >= 0.28) filledCells++;
-    }
-  }
-  return letterCells ? filledCells / letterCells : 0;
-}
-
-export function TracingCanvas({ initialLetter, onTraceCompleted }: TracingCanvasProps) {
+export const TracingCanvas: React.FC<TracingCanvasProps> = ({
+  initialLetter,
+  onTraceCompleted
+}) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const wrapRef = useRef<HTMLDivElement | null>(null);
-  const inkRef = useRef<HTMLCanvasElement | null>(null);
-  const trackRef = useRef<Track | null>(null);
-  const sizeRef = useRef({ w: 360, h: 360, dpr: 1 });
-  const drawingRef = useRef(false);
-  const lastRef = useRef<Pt | null>(null);
-  const demoRef = useRef<number | null>(null);
-  const demoTRef = useRef(0);
+  const [tracingMode, setTracingMode] = useState<'letters' | 'numbers'>('letters');
+  const [selectedLetterIndex, setSelectedLetterIndex] = useState<number>(0);
+  const [selectedNumberIndex, setSelectedNumberIndex] = useState<number>(0);
+  
+  const [brushColor, setBrushColor] = useState<string>('#f59e0b');
+  const [brushSize, setBrushSize] = useState<number>(24);
+  const [isDrawing, setIsDrawing] = useState<boolean>(false);
+  const [hasCompleted, setHasCompleted] = useState<boolean>(false);
+  const [drawnStrokeCount, setDrawnStrokeCount] = useState<number>(0);
+  
+  // Direction & Number Guides States
+  const [showNumberGuides, setShowNumberGuides] = useState<boolean>(true);
+  const [showGuideLines, setShowGuideLines] = useState<boolean>(true);
+  const [activeStepFilter, setActiveStepFilter] = useState<number | 'all'>('all');
+  
+  // Animation / Demo Mode States
+  const [isAnimatingDemo, setIsAnimatingDemo] = useState<boolean>(false);
+  const [demoProgress, setDemoProgress] = useState<{ x: number; y: number; stepNumber: number } | null>(null);
+  const demoAnimRef = useRef<number | null>(null);
 
-  const [tracingMode, setTracingMode] = useState<"letters" | "numbers">("letters");
-  const [selectedLetterIndex, setSelectedLetterIndex] = useState(0);
-  const [selectedNumberIndex, setSelectedNumberIndex] = useState(0);
-  const [crayon, setCrayon] = useState<(typeof CRAYONS)[number]["color"]>(CRAYONS[0].color);
-  const crayonRef = useRef(crayon);
-  crayonRef.current = crayon;
-  const [done, setDone] = useState(false);
-  const [watching, setWatching] = useState(false);
-  const [hint, setHint] = useState("Trace the letter — stay on the shape!");
-  const [praise, setPraise] = useState<string | null>(null);
-  const [startPx, setStartPx] = useState<Pt | null>(null);
-  const [fill, setFill] = useState(0);
+  const [celebrationPraise, setCelebrationPraise] = useState<string | null>(null);
 
+  // Set initial letter if passed
   useEffect(() => {
-    if (!initialLetter) return;
-    const idx = GURMUKHI_LETTERS.findIndex((l) => l.id === initialLetter.id);
-    if (idx !== -1) {
-      setTracingMode("letters");
-      setSelectedLetterIndex(idx);
+    if (initialLetter) {
+      const idx = GURMUKHI_LETTERS.findIndex(l => l.id === initialLetter.id);
+      if (idx !== -1) {
+        setTracingMode('letters');
+        setSelectedLetterIndex(idx);
+      }
     }
   }, [initialLetter]);
 
-  const activeChar =
-    tracingMode === "letters"
-      ? GURMUKHI_LETTERS[selectedLetterIndex].letter
-      : GURMUKHI_NUMBERS[selectedNumberIndex].char;
-  const activeName =
-    tracingMode === "letters"
-      ? GURMUKHI_LETTERS[selectedLetterIndex].name
-      : GURMUKHI_NUMBERS[selectedNumberIndex].name;
-  const activeGurmukhiName =
-    tracingMode === "letters"
-      ? GURMUKHI_LETTERS[selectedLetterIndex].gurmukhiName
-      : GURMUKHI_NUMBERS[selectedNumberIndex].gurmukhiName;
-  const activeExample =
-    tracingMode === "letters"
-      ? GURMUKHI_LETTERS[selectedLetterIndex]
-      : GURMUKHI_NUMBERS[selectedNumberIndex];
+  const activeChar = tracingMode === 'letters' 
+    ? GURMUKHI_LETTERS[selectedLetterIndex].letter 
+    : GURMUKHI_NUMBERS[selectedNumberIndex].char;
 
-  const stopDemo = useCallback(() => {
-    if (demoRef.current) {
-      cancelAnimationFrame(demoRef.current);
-      demoRef.current = null;
-    }
-    setWatching(false);
-    demoTRef.current = 0;
-  }, []);
+  const activeName = tracingMode === 'letters' 
+    ? GURMUKHI_LETTERS[selectedLetterIndex].name 
+    : GURMUKHI_NUMBERS[selectedNumberIndex].name;
 
-  const brush = (pressure = 0.28) => {
-    const minW = 3.5;
-    const maxW = 8;
-    const t = Math.min(1, Math.max(0.12, pressure)) ** 1.55;
-    return minW + (maxW - minW) * t;
-  };
+  const activeGurmukhiName = tracingMode === 'letters' 
+    ? GURMUKHI_LETTERS[selectedLetterIndex].gurmukhiName 
+    : GURMUKHI_NUMBERS[selectedNumberIndex].gurmukhiName;
 
-  const pressureOf = (e: React.PointerEvent) => {
-    if (e.pointerType === "mouse" || e.pressure <= 0) return 0.26;
-    return Math.min(1, e.pressure * 0.72);
-  };
+  const activeExample = tracingMode === 'letters' 
+    ? GURMUKHI_LETTERS[selectedLetterIndex] 
+    : GURMUKHI_NUMBERS[selectedNumberIndex];
 
-  const paint = useCallback(
-    (demoOffset?: number) => {
-      const canvas = canvasRef.current;
-      const ink = inkRef.current;
-      if (!canvas) return;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-      const { w, h, dpr } = sizeRef.current;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, w, h);
-      ctx.fillStyle = "#fffcf6";
-      ctx.fillRect(0, 0, w, h);
+  // Retrieve stroke direction dataset for active character
+  const strokeData = getStrokeDataForChar(activeChar, activeName, activeGurmukhiName);
 
-      ctx.setLineDash([14, 16]);
-      drawGlyph(ctx, activeChar, w, h, "stroke", "rgba(201, 120, 32, 0.35)", 10);
-      ctx.setLineDash([]);
-      drawGlyph(ctx, activeChar, w, h, "fill", "rgba(201, 120, 32, 0.08)", 10);
-
-      if (typeof demoOffset === "number") {
-        const peri = Math.max(w, h) * 4;
-        ctx.save();
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.font = glyphFont(h);
-        ctx.lineJoin = "round";
-        ctx.lineCap = "round";
-        ctx.lineWidth = brush(0.3);
-        ctx.strokeStyle = crayonRef.current + "99";
-        ctx.setLineDash([peri, peri]);
-        ctx.lineDashOffset = peri * (1 - demoOffset);
-        ctx.strokeText(activeChar, w / 2, h / 2 + h * 0.02);
-        ctx.restore();
-      }
-
-      if (ink) ctx.drawImage(ink, 0, 0, w, h);
-    },
-    [activeChar],
-  );
-
-  const rebuild = useCallback(() => {
-    stopDemo();
-    const { w, h } = sizeRef.current;
-    if (w < 8 || h < 8) return;
-    trackRef.current = buildTrack(w, h, activeChar);
-    const ink = document.createElement("canvas");
-    ink.width = w;
-    ink.height = h;
-    inkRef.current = ink;
-    drawingRef.current = false;
-    lastRef.current = null;
-    setDone(false);
-    setPraise(null);
-    setFill(0);
-    setStartPx(trackRef.current.start);
-    setHint("Start on the star and color the letter!");
-    paint();
-  }, [activeChar, paint, stopDemo]);
-
-  useEffect(() => {
-    const wrap = wrapRef.current;
+  // Draw background template letter on canvas
+  const drawTemplate = useCallback(() => {
     const canvas = canvasRef.current;
-    if (!wrap || !canvas) return;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
-    const layout = () => {
-      const cssW = Math.min(wrap.clientWidth, 560);
-      const cssH = Math.min(Math.max(cssW * 0.92, 300), 520);
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      sizeRef.current = { w: cssW, h: cssH, dpr };
-      canvas.width = Math.floor(cssW * dpr);
-      canvas.height = Math.floor(cssH * dpr);
-      canvas.style.width = `${cssW}px`;
-      canvas.style.height = `${cssH}px`;
-      rebuild();
-    };
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    layout();
-    const ro = new ResizeObserver(layout);
-    ro.observe(wrap);
-    return () => ro.disconnect();
-  }, [rebuild]);
+    // Background clean white canvas
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+    // Guide lines (top, midline, baseline)
+    if (showGuideLines) {
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 6]);
+
+      // Top line
+      ctx.beginPath();
+      ctx.moveTo(30, canvas.height * 0.22);
+      ctx.lineTo(canvas.width - 30, canvas.height * 0.22);
+      ctx.stroke();
+
+      // Middle line
+      ctx.beginPath();
+      ctx.moveTo(30, canvas.height * 0.52);
+      ctx.lineTo(canvas.width - 30, canvas.height * 0.52);
+      ctx.stroke();
+
+      // Baseline
+      ctx.beginPath();
+      ctx.moveTo(30, canvas.height * 0.82);
+      ctx.lineTo(canvas.width - 30, canvas.height * 0.82);
+      ctx.stroke();
+
+      ctx.setLineDash([]);
+    }
+
+    // Draw giant guide letter
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `900 ${canvas.height * 0.58}px "Noto Sans Gurmukhi", "Baloo Paaji 2", sans-serif`;
+
+    // Outer faint dotted stroke
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.lineWidth = 16;
+    ctx.setLineDash([10, 10]);
+    ctx.strokeText(activeChar, canvas.width / 2, canvas.height / 2 + 10);
+    ctx.setLineDash([]);
+
+    // Soft gray fill
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillText(activeChar, canvas.width / 2, canvas.height / 2 + 10);
+
+    // Centered guide dots for toddler to trace along
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = `900 ${canvas.height * 0.58}px "Noto Sans Gurmukhi", "Baloo Paaji 2", sans-serif`;
+    ctx.fillText(activeChar, canvas.width / 2, canvas.height / 2 + 10);
+
+    setDrawnStrokeCount(0);
+    setHasCompleted(false);
+  }, [activeChar, showGuideLines]);
+
+  // Re-draw when letter changes
   useEffect(() => {
-    rebuild();
-  }, [activeChar, tracingMode, rebuild]);
+    // Cancel any running animation
+    if (demoAnimRef.current) {
+      cancelAnimationFrame(demoAnimRef.current);
+      demoAnimRef.current = null;
+    }
+    setIsAnimatingDemo(false);
+    setDemoProgress(null);
+    setActiveStepFilter('all');
 
+    drawTemplate();
+    speakPunjabi(`${activeChar}, ${activeName}`, 1.08, 0.8);
+  }, [drawTemplate, activeChar, activeName]);
+
+  // Handle Resize of canvas
   useEffect(() => {
-    let cancelled = false;
-    void document.fonts.ready.then(() => {
-      if (!cancelled) rebuild();
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [rebuild]);
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const parent = canvas.parentElement;
+    if (!parent) return;
 
-  useEffect(() => {
-    paint();
-  }, [crayon, paint]);
+    const width = Math.min(parent.clientWidth - 10, 520);
+    const height = Math.min(width * 0.95, 480);
 
-  const pointerPos = (e: React.PointerEvent): Pt => {
-    const canvas = canvasRef.current!;
+    canvas.width = width;
+    canvas.height = height;
+    drawTemplate();
+  }, [drawTemplate]);
+
+  // Touch & Mouse Drawing Handlers
+  const getCoordinates = (e: React.MouseEvent | React.TouchEvent) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
+
+    if ('touches' in e) {
+      const touch = e.touches[0];
+      return {
+        x: touch.clientX - rect.left,
+        y: touch.clientY - rect.top
+      };
+    }
     return {
-      x: ((e.clientX - rect.left) / rect.width) * sizeRef.current.w,
-      y: ((e.clientY - rect.top) / rect.height) * sizeRef.current.h,
+      x: (e as React.MouseEvent).clientX - rect.left,
+      y: (e as React.MouseEvent).clientY - rect.top
     };
   };
 
-  const stamp = (from: Pt, to: Pt, pressure = 0.26) => {
-    const ink = inkRef.current;
-    const track = trackRef.current;
-    if (!ink || !track) return;
-    const ctx = ink.getContext("2d")!;
-    ctx.save();
-    ctx.globalAlpha = 0.38 + pressure * 0.22;
-    ctx.strokeStyle = crayonRef.current;
-    ctx.fillStyle = crayonRef.current;
-    ctx.lineWidth = brush(pressure);
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
+  const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    if (isAnimatingDemo) stopDemoAnimation();
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const { x, y } = getCoordinates(e);
+    setIsDrawing(true);
+
     ctx.beginPath();
-    ctx.moveTo(from.x, from.y);
-    ctx.lineTo(to.x, to.y);
-    ctx.stroke();
-    ctx.globalCompositeOperation = "destination-in";
-    ctx.drawImage(track.sil, 0, 0);
-    ctx.restore();
-  };
+    ctx.moveTo(x, y);
 
-  const checkDone = () => {
-    const ink = inkRef.current;
-    const track = trackRef.current;
-    if (!ink || !track || done) return;
-    const pct = coverage(ink, track);
-    setFill(pct);
-    if (pct >= 0.78) {
-      setDone(true);
-      setHint("Shabaash!");
-      playSuccessChime();
-      playCelebration();
-      const said = speakPraise();
-      setPraise(said.gurmukhi);
-      confetti({ particleCount: 90, spread: 80, origin: { y: 0.55 } });
-      onTraceCompleted(activeName);
-    } else if (pct > 0.2) {
-      setHint("Keep going — fill the whole letter!");
-    }
-  };
-
-  const onDown = (e: React.PointerEvent) => {
-    if (done || watching) return;
-    e.preventDefault();
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    const p = pointerPos(e);
-    drawingRef.current = true;
-    lastRef.current = p;
-    stamp(p, p, pressureOf(e));
     playSparkle();
-    paint();
   };
 
-  const onMove = (e: React.PointerEvent) => {
-    if (!drawingRef.current || done || watching) return;
+  const draw = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!isDrawing) return;
     e.preventDefault();
-    const p = pointerPos(e);
-    const last = lastRef.current ?? p;
-    stamp(last, p, pressureOf(e));
-    lastRef.current = p;
-    if (Math.random() > 0.86) playSparkle();
-    paint();
-  };
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
-  const onUp = () => {
-    if (!drawingRef.current) return;
-    drawingRef.current = false;
-    lastRef.current = null;
-    checkDone();
-    paint();
-  };
+    const { x, y } = getCoordinates(e);
 
-  const playDemo = () => {
-    if (watching) {
-      stopDemo();
-      rebuild();
-      return;
+    // Rainbow brush effect or solid color
+    if (brushColor === 'rainbow') {
+      const hue = (Date.now() / 8) % 360;
+      ctx.strokeStyle = `hsl(${hue}, 90%, 55%)`;
+      ctx.shadowColor = `hsl(${hue}, 100%, 65%)`;
+      ctx.shadowBlur = 8;
+    } else {
+      ctx.strokeStyle = brushColor;
+      ctx.shadowColor = brushColor;
+      ctx.shadowBlur = 6;
     }
-    playChime();
-    speakPunjabi(`ਵੇਖੋ ਜੀ, ${activeGurmukhiName} ਇੰਜ ਲਿਖੋ।`);
-    setWatching(true);
-    setHint("Watch the letter…");
-    const ink = inkRef.current;
-    if (ink) ink.getContext("2d")?.clearRect(0, 0, ink.width, ink.height);
-    setFill(0);
-    const t0 = performance.now();
-    const run = (now: number) => {
-      const t = Math.min(1, (now - t0) / 1600);
-      demoTRef.current = t;
-      paint(t);
-      if (t < 1) {
-        demoRef.current = requestAnimationFrame(run);
-      } else {
-        stopDemo();
-        setHint("Your turn! Color inside the letter.");
-        speakPunjabi("ਹੁਣ ਤੁਸੀਂ ਲਿਖੋ ਜੀ।");
-        paint();
-      }
-    };
-    demoRef.current = requestAnimationFrame(run);
+
+    ctx.lineWidth = brushSize;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    ctx.lineTo(x, y);
+    ctx.stroke();
+
+    setDrawnStrokeCount((prev) => prev + 1);
+
+    if (Math.random() > 0.85) {
+      playSparkle();
+    }
+  };
+
+  const stopDrawing = () => {
+    if (!isDrawing) return;
+    setIsDrawing(false);
+
+    // If toddler has drawn a significant amount, check completion
+    if (drawnStrokeCount > 25 && !hasCompleted) {
+      triggerSuccessCelebration();
+    }
+  };
+
+  const triggerSuccessCelebration = () => {
+    setHasCompleted(true);
+    playSuccessChime();
+    playCelebration();
+
+    const praise = speakPraise();
+    setCelebrationPraise(`${praise.gurmukhi} (${praise.roman})`);
+    setTimeout(() => setCelebrationPraise(null), 3000);
+
+    // Confetti shower
+    confetti({
+      particleCount: 70,
+      spread: 70,
+      origin: { y: 0.6 }
+    });
+
+    onTraceCompleted(activeName);
   };
 
   const handleNext = () => {
     playChime();
-    if (tracingMode === "letters") {
+    if (tracingMode === 'letters') {
       setSelectedLetterIndex((prev) => (prev + 1) % GURMUKHI_LETTERS.length);
     } else {
       setSelectedNumberIndex((prev) => (prev + 1) % GURMUKHI_NUMBERS.length);
@@ -449,78 +310,200 @@ export function TracingCanvas({ initialLetter, onTraceCompleted }: TracingCanvas
 
   const handlePrev = () => {
     playChime();
-    if (tracingMode === "letters") {
+    if (tracingMode === 'letters') {
       setSelectedLetterIndex((prev) => (prev - 1 + GURMUKHI_LETTERS.length) % GURMUKHI_LETTERS.length);
     } else {
       setSelectedNumberIndex((prev) => (prev - 1 + GURMUKHI_NUMBERS.length) % GURMUKHI_NUMBERS.length);
     }
   };
 
-  const items = tracingMode === "letters" ? GURMUKHI_LETTERS : GURMUKHI_NUMBERS;
-  const selectedIdx = tracingMode === "letters" ? selectedLetterIndex : selectedNumberIndex;
+  // Demo Animated Stroke Order
+  const startDemoAnimation = () => {
+    if (isAnimatingDemo) {
+      stopDemoAnimation();
+      return;
+    }
+
+    playChime();
+    drawTemplate();
+    setIsAnimatingDemo(true);
+
+    const strokes = strokeData.strokes;
+    if (strokes.length === 0) return;
+
+    let currentStrokeIdx = 0;
+    let currentPointIdx = 0;
+    let t = 0; // interpolation 0..1 between path points
+
+    speakPunjabi(`${activeChar}. ਦੇਖੋ ਕਿਵੇਂ ਲਿਖਣਾ ਹੈ`, 1.0, 0.9);
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const animate = () => {
+      const currentStroke = strokes[currentStrokeIdx];
+      const points = currentStroke.pathPoints;
+
+      if (currentPointIdx < points.length - 1) {
+        const p1 = points[currentPointIdx];
+        const p2 = points[currentPointIdx + 1];
+
+        // Interpolate position
+        const curX = (p1.x + (p2.x - p1.x) * t) * (canvas.width / 100);
+        const curY = (p1.y + (p2.y - p1.y) * t) * (canvas.height / 100);
+
+        setDemoProgress({
+          x: curX,
+          y: curY,
+          stepNumber: currentStroke.stepNumber
+        });
+
+        // Draw smooth animated demonstration brush line
+        ctx.strokeStyle = currentStroke.color;
+        ctx.shadowColor = currentStroke.color;
+        ctx.shadowBlur = 8;
+        ctx.lineWidth = brushSize;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        if (t === 0 && currentPointIdx === 0) {
+          ctx.beginPath();
+          ctx.moveTo(curX, curY);
+        } else {
+          ctx.lineTo(curX, curY);
+          ctx.stroke();
+        }
+
+        t += 0.04;
+        if (t >= 1) {
+          t = 0;
+          currentPointIdx++;
+        }
+        demoAnimRef.current = requestAnimationFrame(animate);
+      } else {
+        // Move to next stroke after short pause
+        currentStrokeIdx++;
+        currentPointIdx = 0;
+        t = 0;
+
+        if (currentStrokeIdx < strokes.length) {
+          setTimeout(() => {
+            if (ctx) {
+              const nextStart = strokes[currentStrokeIdx].pathPoints[0];
+              ctx.beginPath();
+              ctx.moveTo(nextStart.x * (canvas.width / 100), nextStart.y * (canvas.height / 100));
+            }
+            demoAnimRef.current = requestAnimationFrame(animate);
+          }, 350);
+        } else {
+          // Finished all strokes!
+          setTimeout(() => {
+            setIsAnimatingDemo(false);
+            setDemoProgress(null);
+            playSparkle();
+          }, 500);
+        }
+      }
+    };
+
+    demoAnimRef.current = requestAnimationFrame(animate);
+  };
+
+  const stopDemoAnimation = () => {
+    if (demoAnimRef.current) {
+      cancelAnimationFrame(demoAnimRef.current);
+      demoAnimRef.current = null;
+    }
+    setIsAnimatingDemo(false);
+    setDemoProgress(null);
+  };
+
+  // Convert percentage points to SVG path d attribute
+  const getSvgPathFromPoints = (points: { x: number; y: number }[], width: number, height: number) => {
+    if (!points || points.length === 0) return '';
+    return points.reduce((acc, pt, idx) => {
+      const px = (pt.x * width) / 100;
+      const py = (pt.y * height) / 100;
+      return idx === 0 ? `M ${px} ${py}` : `${acc} L ${px} ${py}`;
+    }, '');
+  };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-4">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div className="flex items-center gap-1.5 bg-white p-1.5 rounded-2xl shadow-card">
+    <div className="max-w-5xl mx-auto space-y-5">
+      
+      {/* Top Mode Selector Tabs */}
+      <div className="flex items-center justify-between flex-wrap gap-3 bg-white p-3.5 sm:p-4 rounded-3xl border border-slate-200/80 shadow-xs">
+        <div className="flex items-center gap-2">
           <button
             id="trace-mode-letters-btn"
             onClick={() => {
               playChime();
-              setTracingMode("letters");
+              setTracingMode('letters');
             }}
-            className={`min-h-11 px-4 rounded-xl font-bold text-sm ${
-              tracingMode === "letters" ? "bg-saffron text-white" : "text-ink"
+            className={`px-4 py-2 rounded-2xl font-bold text-xs sm:text-sm transition-all flex items-center gap-1.5 cursor-pointer ${
+              tracingMode === 'letters'
+                ? 'bg-amber-500 text-white shadow-xs'
+                : 'bg-slate-100 hover:bg-slate-200/80 text-slate-700'
             }`}
           >
-            Letters
+            <span>🔤</span>
+            <span>Letters (ੳ ਅ ੲ)</span>
           </button>
+
           <button
             id="trace-mode-numbers-btn"
             onClick={() => {
               playChime();
-              setTracingMode("numbers");
+              setTracingMode('numbers');
             }}
-            className={`min-h-11 px-4 rounded-xl font-bold text-sm ${
-              tracingMode === "numbers" ? "bg-saffron text-white" : "text-ink"
+            className={`px-4 py-2 rounded-2xl font-bold text-xs sm:text-sm transition-all flex items-center gap-1.5 cursor-pointer ${
+              tracingMode === 'numbers'
+                ? 'bg-blue-500 text-white shadow-xs'
+                : 'bg-slate-100 hover:bg-slate-200/80 text-slate-700'
             }`}
           >
-            Numbers
+            <span>🔢</span>
+            <span>Numbers (੧ ੨ ੩)</span>
           </button>
         </div>
 
+        {/* Pronunciation & Speak Action */}
         <button
           id="trace-speak-btn"
-          onClick={() => {
-            if (tracingMode === "letters") {
-              speakLetterDetails(GURMUKHI_LETTERS[selectedLetterIndex]);
-            } else {
-              const n = GURMUKHI_NUMBERS[selectedNumberIndex];
-              speakPunjabi(`<slow>${n.name.split(" ")[0]}.</slow>`);
-            }
-          }}
-          className="btn-primary min-h-11 px-4 font-bold flex items-center gap-2 text-sm"
+          onClick={() => speakPunjabi(`${activeChar}, ${activeName}`, 1.08, 0.8)}
+          className="btn-primary px-4 py-2 rounded-2xl font-bold text-white flex items-center gap-1.5 text-xs sm:text-sm cursor-pointer"
         >
           <Volume2 className="w-4 h-4" />
-          Hear {activeChar}
+          <span>Speak "{activeChar}"</span>
         </button>
       </div>
 
-      <div className="flex items-center gap-2 overflow-x-auto p-2 bg-white rounded-2xl shadow-card scrollbar-none">
-        {items.map((item, idx) => {
-          const char = "letter" in item ? item.letter : item.char;
-          const selected = idx === selectedIdx;
+      {/* Item Carousel Selector */}
+      <div className="flex items-center gap-2 overflow-x-auto p-2.5 bg-white rounded-2xl border border-slate-200/80 shadow-xs scrollbar-none">
+        {(tracingMode === 'letters' ? GURMUKHI_LETTERS : GURMUKHI_NUMBERS).map((item, idx) => {
+          const isSelected = tracingMode === 'letters' 
+            ? selectedLetterIndex === idx 
+            : selectedNumberIndex === idx;
+          const char = 'letter' in item ? item.letter : item.char;
+
           return (
             <button
               key={item.id}
               id={`select-char-btn-${item.id}`}
               onClick={() => {
                 playChime();
-                if (tracingMode === "letters") setSelectedLetterIndex(idx);
-                else setSelectedNumberIndex(idx);
+                if (tracingMode === 'letters') {
+                  setSelectedLetterIndex(idx);
+                } else {
+                  setSelectedNumberIndex(idx);
+                }
               }}
-              className={`shrink-0 min-w-14 h-14 rounded-2xl font-gurmukhi font-black text-2xl ${
-                selected ? "bg-saffron text-white" : "bg-paper text-ink"
+              className={`min-w-[44px] h-11 rounded-xl font-gurmukhi font-bold text-xl transition-all flex items-center justify-center flex-shrink-0 cursor-pointer ${
+                isSelected
+                  ? 'bg-amber-500 text-white shadow-xs scale-105'
+                  : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/60'
               }`}
             >
               {char}
@@ -529,132 +512,513 @@ export function TracingCanvas({ initialLetter, onTraceCompleted }: TracingCanvas
         })}
       </div>
 
-      <div className="bg-white rounded-[28px] p-4 sm:p-6 shadow-card relative overflow-hidden">
-        <div className="flex items-center justify-between gap-3 mb-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-14 h-14 rounded-2xl bg-paper text-ink font-gurmukhi font-black text-3xl flex items-center justify-center">
-              {activeChar}
-            </div>
-            <div className="min-w-0">
-              <h3 className="text-xl font-bold font-baloo text-ink leading-tight">{activeName}</h3>
-              <p className="text-sm font-gurmukhi text-saffron-dark">{activeGurmukhiName}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-3xl" aria-hidden>
-              {"exampleEmoji" in activeExample ? activeExample.exampleEmoji : ""}
-            </span>
-            <div className="w-20 h-2.5 rounded-full bg-paper overflow-hidden" title="How much of the letter is filled">
-              <div
-                className="h-full bg-saffron transition-[width] duration-200"
-                style={{ width: `${Math.min(100, Math.round(fill * 100))}%` }}
-              />
-            </div>
-          </div>
-        </div>
-
-        <p className="text-center font-bold text-saffron-dark mb-3 min-h-6">{hint}</p>
-
-        <div
-          ref={wrapRef}
-          className="relative mx-auto touch-none select-none rounded-[24px] overflow-hidden bg-paper"
-          style={{ maxWidth: 560 }}
-        >
-          <canvas
-            ref={canvasRef}
-            id="trace-canvas"
-            onPointerDown={onDown}
-            onPointerMove={onMove}
-            onPointerUp={onUp}
-            onPointerCancel={onUp}
-            className="block w-full touch-none"
-          />
-
-          {startPx && !done && !watching && fill < 0.12 && (
-            <div
-              className="absolute pointer-events-none -translate-x-1/2 -translate-y-1/2"
-              style={{ left: startPx.x, top: startPx.y }}
-            >
-              <div className="relative w-12 h-12">
-                <span className="absolute inset-0 rounded-full bg-saffron/30 speaking-pulse" />
-                <span className="absolute inset-1 rounded-full bg-saffron text-white flex items-center justify-center font-black text-sm shadow-card">
-                  Go
-                </span>
+      {/* Main Tracing Stage */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+        
+        {/* Left Side: Drawing Canvas & Visual Direction Indicators */}
+        <div className="lg:col-span-8 flex flex-col items-center bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-sm relative">
+          
+          {/* Header Info of Current Letter */}
+          <div className="w-full flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-amber-100 text-amber-900 border border-amber-200 rounded-2xl flex items-center justify-center text-3xl font-black font-gurmukhi shadow-xs">
+                {activeChar}
+              </div>
+              <div>
+                <h3 className="text-lg sm:text-xl font-bold text-slate-900 font-baloo leading-tight">
+                  {activeName}
+                </h3>
+                <p className="text-xs font-bold text-amber-700 font-gurmukhi">
+                  {activeGurmukhiName}
+                </p>
               </div>
             </div>
-          )}
 
-          {done && (
-            <div className="absolute inset-0 bg-paper/85 flex flex-col items-center justify-center gap-3 p-6 text-center">
-              <Sparkles className="w-10 h-10 text-saffron" />
-              <p className="text-3xl font-black font-gurmukhi text-ink">{praise ?? "ਸ਼ਾਬਾਸ਼!"}</p>
-              <p className="font-bold text-muted">You traced {activeName}!</p>
-              <button id="trace-next-after-win" onClick={handleNext} className="btn-primary min-h-12 px-6 text-base">
-                Next letter
+            {/* Stroke Order Demo Button & Quick Controls */}
+            <div className="flex items-center gap-2">
+              <button
+                id="watch-demo-stroke-btn"
+                onClick={startDemoAnimation}
+                className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-xs ${
+                  isAnimatingDemo
+                    ? 'bg-rose-500 text-white animate-pulse'
+                    : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200'
+                }`}
+                title="Watch animated stroke order demonstration"
+              >
+                {isAnimatingDemo ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-current" />}
+                <span>{isAnimatingDemo ? 'Stop Demo' : 'Watch Order ▶'}</span>
               </button>
+
+              {/* Example Picture Pill */}
+              <div className="hidden sm:flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl">
+                <span className="text-2xl">
+                  {'exampleEmoji' in activeExample ? activeExample.exampleEmoji : '⭐'}
+                </span>
+                <div className="text-right">
+                  <span className="text-xs font-bold font-gurmukhi text-slate-800 block leading-tight">
+                    {'exampleWord' in activeExample ? activeExample.exampleWord : ''}
+                  </span>
+                  <span className="text-[10px] text-slate-500 block">
+                    {'exampleEnglish' in activeExample ? activeExample.exampleEnglish : ''}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Celebration Banner */}
+          {celebrationPraise && (
+            <div className="absolute top-20 bg-emerald-500 text-white font-bold text-base px-5 py-2 rounded-full shadow-lg animate-bounce z-30 flex items-center gap-2">
+              <span>🌟</span>
+              <span>{celebrationPraise}</span>
+              <span>🎉</span>
             </div>
           )}
-        </div>
 
-        <div className="flex items-center justify-center gap-3 mt-4">
-          {CRAYONS.map((c) => (
-            <button
-              key={c.id}
-              title={c.label}
-              onClick={() => {
-                playChime();
-                setCrayon(c.color);
-              }}
-              className={`w-11 h-11 rounded-full transition-transform duration-150 ${
-                crayon === c.color ? "scale-110 ring-4 ring-saffron/30" : ""
-              }`}
-              style={{ backgroundColor: c.color }}
+          {/* Interactive HTML5 Canvas with Direction & Number Overlays */}
+          <div className="relative touch-none select-none rounded-2xl overflow-hidden border-2 border-dashed border-slate-300 bg-white shadow-xs w-full flex items-center justify-center">
+            
+            {/* Base HTML5 Canvas for User Drawing */}
+            <canvas
+              ref={canvasRef}
+              onMouseDown={startDrawing}
+              onMouseMove={draw}
+              onMouseUp={stopDrawing}
+              onMouseLeave={stopDrawing}
+              onTouchStart={startDrawing}
+              onTouchMove={draw}
+              onTouchEnd={stopDrawing}
+              className="cursor-crosshair block max-w-full"
             />
-          ))}
-        </div>
 
-        <div className="flex items-center justify-between gap-2 mt-5 flex-wrap">
-          <button
-            id="canvas-prev-btn"
-            onClick={handlePrev}
-            className="btn-secondary min-h-11 px-4 font-bold text-sm flex items-center gap-1"
-          >
-            <ChevronLeft className="w-4 h-4" />
-            Prev
-          </button>
+            {/* SVG Direction & Numbered Stroke Guides Overlay */}
+            {showNumberGuides && canvasRef.current && (
+              <svg
+                className="absolute inset-0 pointer-events-none w-full h-full"
+                viewBox={`0 0 ${canvasRef.current.width} ${canvasRef.current.height}`}
+              >
+                <defs>
+                  {/* Glowing marker definitions for arrows */}
+                  {strokeData.strokes.map((stroke) => (
+                    <marker
+                      key={`marker-${stroke.stepNumber}`}
+                      id={`arrowhead-${stroke.stepNumber}`}
+                      viewBox="0 0 10 10"
+                      refX="8"
+                      refY="5"
+                      markerWidth="6"
+                      markerHeight="6"
+                      orient="auto-start-reverse"
+                    >
+                      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill={stroke.color} />
+                    </marker>
+                  ))}
+                </defs>
 
-          <div className="flex items-center gap-2">
+                {/* Draw Each Stroke Line with Animated Directional Dashes */}
+                {strokeData.strokes.map((stroke) => {
+                  const isVisible = activeStepFilter === 'all' || activeStepFilter === stroke.stepNumber;
+                  if (!isVisible) return null;
+
+                  const width = canvasRef.current?.width || 480;
+                  const height = canvasRef.current?.height || 440;
+                  const pathD = getSvgPathFromPoints(stroke.pathPoints, width, height);
+
+                  return (
+                    <g key={`stroke-guide-${stroke.stepNumber}`} className="transition-opacity duration-300">
+                      
+                      {/* Stroke Background Glow Path */}
+                      <path
+                        d={pathD}
+                        fill="none"
+                        stroke={stroke.color}
+                        strokeWidth="6"
+                        strokeOpacity="0.35"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+
+                      {/* Directional Flowing Dashed Arrow Line */}
+                      <path
+                        d={pathD}
+                        fill="none"
+                        stroke={stroke.color}
+                        strokeWidth="3.5"
+                        strokeDasharray="6, 6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        markerEnd={`url(#arrowhead-${stroke.stepNumber})`}
+                        className="animate-pulse"
+                      />
+
+                      {/* START POINT Numbered Badge Circle */}
+                      <g
+                        transform={`translate(${(stroke.startPoint.x * width) / 100}, ${(stroke.startPoint.y * height) / 100})`}
+                        className="drop-shadow-md"
+                      >
+                        {/* Outer Pulse Ring */}
+                        <circle
+                          r="15"
+                          fill={stroke.color}
+                          fillOpacity="0.25"
+                          className="animate-ping"
+                        />
+                        {/* Solid Numbered Badge */}
+                        <circle
+                          r="12"
+                          fill={stroke.color}
+                          stroke="#ffffff"
+                          strokeWidth="2.5"
+                        />
+                        {/* Stroke Number Text */}
+                        <text
+                          x="0"
+                          y="1"
+                          textAnchor="middle"
+                          dominantBaseline="middle"
+                          fill="#ffffff"
+                          fontSize="12"
+                          fontWeight="900"
+                          fontFamily="sans-serif"
+                        >
+                          {stroke.stepNumber}
+                        </text>
+                      </g>
+
+                      {/* Direction Icon Tag along the stroke */}
+                      <g
+                        transform={`translate(${((stroke.startPoint.x + stroke.endPoint.x) / 2 * width) / 100}, ${((stroke.startPoint.y + stroke.endPoint.y) / 2 * height) / 100 - 12})`}
+                      >
+                        <rect
+                          x="-10"
+                          y="-10"
+                          width="20"
+                          height="20"
+                          rx="6"
+                          fill="#ffffff"
+                          stroke={stroke.color}
+                          strokeWidth="1.5"
+                          className="drop-shadow-xs"
+                        />
+                        <text
+                          x="0"
+                          y="1"
+                          textAnchor="middle"
+                          dominantBaseline="middle"
+                          fontSize="11"
+                        >
+                          {stroke.arrowIcon}
+                        </text>
+                      </g>
+
+                    </g>
+                  );
+                })}
+              </svg>
+            )}
+
+            {/* Live Animated Pen/Hand Indicator during Demo */}
+            {isAnimatingDemo && demoProgress && (
+              <div 
+                className="absolute pointer-events-none -translate-x-3 -translate-y-8 transition-transform z-20"
+                style={{
+                  left: `${demoProgress.x}px`,
+                  top: `${demoProgress.y}px`
+                }}
+              >
+                <div className="flex items-center gap-1 bg-slate-900/90 text-white text-[11px] font-black px-2 py-0.5 rounded-full shadow-lg border border-amber-400">
+                  <span>✏️</span>
+                  <span>Step {demoProgress.stepNumber}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Prompt Helper Overlay */}
+            {drawnStrokeCount === 0 && !isAnimatingDemo && (
+              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white text-xs font-medium px-4 py-1.5 rounded-full pointer-events-none flex items-center gap-1.5 shadow-md">
+                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                <span>Follow numbers ① ➔ ② ➔ ③ with the arrows!</span>
+              </div>
+            )}
+          </div>
+
+          {/* Canvas Bottom Controls & Step Filter Toggles */}
+          <div className="w-full flex items-center justify-between mt-4 gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+              
+              {/* Clear / Erase Button */}
+              <button
+                id="clear-canvas-btn"
+                onClick={() => {
+                  playChime();
+                  drawTemplate();
+                }}
+                className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold border border-slate-200 transition-all flex items-center gap-1.5 text-xs cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Clear</span>
+              </button>
+
+              {/* Number Direction Overlay Toggle */}
+              <button
+                id="toggle-number-directions-btn"
+                onClick={() => {
+                  playChime();
+                  setShowNumberGuides(!showNumberGuides);
+                }}
+                className={`px-3 py-2 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  showNumberGuides
+                    ? 'bg-amber-100 text-amber-900 border-amber-200 shadow-2xs'
+                    : 'bg-slate-100 text-slate-600 border-slate-200'
+                }`}
+                title="Toggle visual stroke numbers and direction arrows"
+              >
+                {showNumberGuides ? <Eye className="w-3.5 h-3.5 text-amber-700" /> : <EyeOff className="w-3.5 h-3.5 text-slate-500" />}
+                <span>{showNumberGuides ? 'Numbers & Arrows: ON' : 'Numbers & Arrows: OFF'}</span>
+              </button>
+
+              {/* Guide Lines Toggle */}
+              <button
+                id="toggle-guidelines-btn"
+                onClick={() => {
+                  playChime();
+                  setShowGuideLines(!showGuideLines);
+                }}
+                className={`px-3 py-2 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  showGuideLines
+                    ? 'bg-slate-100 text-slate-800 border-slate-300'
+                    : 'bg-slate-50 text-slate-500 border-slate-200'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>Lines</span>
+              </button>
+            </div>
+
+            {/* Check Completion Button */}
             <button
-              id="clear-canvas-btn"
-              onClick={() => {
-                playChime();
-                rebuild();
-              }}
-              className="btn-secondary min-h-11 px-4 font-bold text-sm flex items-center gap-1.5"
+              id="complete-trace-btn"
+              onClick={triggerSuccessCelebration}
+              className="btn-success px-4 py-2 rounded-xl font-bold text-white flex items-center gap-1.5 text-xs sm:text-sm cursor-pointer shadow-xs"
             >
-              <RotateCcw className="w-4 h-4" />
-              Try again
-            </button>
-            <button
-              id="watch-demo-stroke-btn"
-              onClick={playDemo}
-              className="btn-success min-h-11 px-4 font-bold text-sm flex items-center gap-1.5"
-            >
-              {watching ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current" />}
-              {watching ? "Stop" : "Watch"}
+              <CheckCircle2 className="w-4 h-4" />
+              <span>Done / Shabash!</span>
             </button>
           </div>
 
-          <button
-            id="canvas-next-btn"
-            onClick={handleNext}
-            className="btn-primary min-h-11 px-4 font-bold text-sm flex items-center gap-1"
-          >
-            Next
-            <ChevronRight className="w-4 h-4" />
-          </button>
+          {/* Step-by-Step Directional Cards Row for Toddler & Parent */}
+          <div className="w-full mt-4 pt-3.5 border-t border-slate-100">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                <span>📍</span>
+                <span>Stroke Direction Order (ਕ੍ਰਮ ਅਨੁਸਾਰ ਲਿਖੋ)</span>
+              </span>
+
+              {/* Step Filter Tabs */}
+              <div className="flex items-center gap-1">
+                <button
+                  id="step-filter-all"
+                  onClick={() => {
+                    playChime();
+                    setActiveStepFilter('all');
+                  }}
+                  className={`px-2 py-0.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                    activeStepFilter === 'all'
+                      ? 'bg-amber-500 text-white shadow-2xs'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  All Steps
+                </button>
+                {strokeData.strokes.map((s) => (
+                  <button
+                    key={`step-filter-btn-${s.stepNumber}`}
+                    id={`step-filter-${s.stepNumber}`}
+                    onClick={() => {
+                      playChime();
+                      setActiveStepFilter(s.stepNumber);
+                    }}
+                    className={`w-5 h-5 rounded-lg text-[11px] font-black transition-all flex items-center justify-center cursor-pointer ${
+                      activeStepFilter === s.stepNumber
+                        ? 'bg-slate-900 text-white shadow-2xs'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {s.stepNumber}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Individual Numbered Step Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+              {strokeData.strokes.map((stroke) => {
+                const isSelected = activeStepFilter === 'all' || activeStepFilter === stroke.stepNumber;
+                return (
+                  <div
+                    key={`step-card-${stroke.stepNumber}`}
+                    onClick={() => {
+                      playChime();
+                      setActiveStepFilter(activeStepFilter === stroke.stepNumber ? 'all' : stroke.stepNumber);
+                    }}
+                    className={`p-2.5 rounded-2xl border transition-all cursor-pointer flex items-start gap-2.5 ${
+                      isSelected
+                        ? 'bg-slate-50/80 border-slate-300 shadow-2xs'
+                        : 'opacity-40 bg-white border-slate-200'
+                    }`}
+                  >
+                    {/* Circle Number Badge */}
+                    <div
+                      style={{ backgroundColor: stroke.color }}
+                      className="w-7 h-7 rounded-xl text-white font-black text-xs flex items-center justify-center flex-shrink-0 shadow-2xs"
+                    >
+                      {stroke.stepNumber}
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1 text-slate-800 font-bold text-xs leading-tight">
+                        <span>{stroke.arrowIcon}</span>
+                        <span className="truncate">{stroke.instructionEn}</span>
+                      </div>
+                      <p className="text-[11px] font-gurmukhi text-slate-600 mt-0.5 leading-tight truncate">
+                        {stroke.instructionPa}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Navigation Controls (Prev / Next) */}
+          <div className="w-full flex items-center justify-between mt-4 pt-3.5 border-t border-slate-100">
+            <button
+              id="canvas-prev-btn"
+              onClick={handlePrev}
+              className="px-4 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold flex items-center gap-1 text-xs sm:text-sm cursor-pointer"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              <span>Previous</span>
+            </button>
+
+            <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
+              {tracingMode === 'letters'
+                ? `${selectedLetterIndex + 1} of ${GURMUKHI_LETTERS.length}`
+                : `${selectedNumberIndex + 1} of ${GURMUKHI_NUMBERS.length}`}
+            </span>
+
+            <button
+              id="canvas-next-btn"
+              onClick={handleNext}
+              className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold flex items-center gap-1 text-xs sm:text-sm cursor-pointer shadow-xs"
+            >
+              <span>Next</span>
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+
         </div>
+
+        {/* Right Side: Magic Colors Palette & Stroke Sizes */}
+        <div className="lg:col-span-4 space-y-4">
+          
+          {/* Colors Palette Card */}
+          <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/90 shadow-sm">
+            <div className="flex items-center gap-1.5 mb-3 text-slate-800">
+              <Palette className="w-4 h-4 text-amber-500" />
+              <h4 className="font-bold text-sm">Brush Colors</h4>
+            </div>
+
+            <div className="grid grid-cols-4 gap-2">
+              {BRUSH_COLORS.map((bc) => {
+                const isSelected = brushColor === bc.color;
+                return (
+                  <button
+                    key={bc.name}
+                    id={`brush-color-${bc.name.toLowerCase().replace(/\s+/g, '-')}`}
+                    onClick={() => {
+                      playChime();
+                      setBrushColor(bc.color);
+                    }}
+                    title={bc.name}
+                    className={`h-10 rounded-xl ${bc.bg} flex items-center justify-center transition-all cursor-pointer ${
+                      isSelected
+                        ? 'ring-2 ring-offset-2 ring-slate-800 scale-105 shadow-xs'
+                        : 'opacity-85 hover:opacity-100 hover:scale-105'
+                    }`}
+                  >
+                    {isSelected && <Sparkles className="w-4 h-4 text-white drop-shadow-xs" />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Brush Thickness Card */}
+          <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/90 shadow-sm text-slate-800">
+            <h4 className="font-bold text-sm mb-2.5">
+              Brush Size
+            </h4>
+
+            <div className="flex items-center gap-2">
+              {[
+                { label: 'Thin', size: 14 },
+                { label: 'Medium', size: 24 },
+                { label: 'Chunky', size: 36 }
+              ].map((b) => (
+                <button
+                  key={b.label}
+                  id={`brush-size-${b.label.toLowerCase().replace(/\s+/g, '-')}`}
+                  onClick={() => {
+                    playChime();
+                    setBrushSize(b.size);
+                  }}
+                  className={`flex-1 py-2 px-2 rounded-xl font-bold text-xs transition-all border cursor-pointer ${
+                    brushSize === b.size
+                      ? 'bg-slate-800 text-white border-slate-800'
+                      : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  {b.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Stroke Writing Rule Tip Card */}
+          <div className="bg-gradient-to-br from-amber-50 to-orange-50/60 rounded-3xl p-4 sm:p-5 border border-amber-200/80 text-amber-950">
+            <div className="flex items-center gap-1.5 mb-2 font-bold text-xs sm:text-sm text-amber-900">
+              <Award className="w-4 h-4 text-amber-600" />
+              <span>How to Write Gurmukhi</span>
+            </div>
+            
+            {strokeData.overallTipEn && (
+              <p className="text-xs font-semibold text-amber-900 mb-2 bg-white/80 p-2 rounded-xl border border-amber-200/60">
+                💡 {strokeData.overallTipEn}
+              </p>
+            )}
+
+            <ul className="text-xs space-y-1.5 font-medium text-amber-900/90">
+              <li className="flex items-start gap-1.5">
+                <span className="text-amber-600 font-bold">1.</span>
+                <span>Look at numbered circle ① for where to place your finger first.</span>
+              </li>
+              <li className="flex items-start gap-1.5">
+                <span className="text-amber-600 font-bold">2.</span>
+                <span>Drag along the dashed arrow towards the arrow tip.</span>
+              </li>
+              <li className="flex items-start gap-1.5">
+                <span className="text-amber-600 font-bold">3.</span>
+                <span>Proceed to step ②, then ③ until complete!</span>
+              </li>
+            </ul>
+          </div>
+
+        </div>
+
       </div>
+
     </div>
   );
-}
+};

@@ -1,16 +1,20 @@
-# Punjabi Pathshala
+<div align="center">
+<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
+</div>
 
-Toddler Punjabi learning app: Gurmukhi alphabet, tracing, vocabulary, games, rhymes, and stickers.
+# Run and deploy your AI Studio app
 
-## Run locally
+This contains everything you need to run your app locally.
 
-```bash
-npm install
-cp .env.example .env.local
-# add VITE_XAI_API_KEY for natural Punjabi voice (optional)
-npm run dev
-```
+View your app in AI Studio: https://ai.studio/apps/f26dea29-5226-43f2-89d4-e14f9f9bf78f
 
-Letters speak as a primer chant, e.g. **Haha haathi**, **Kakka kabootar**.
+## Run Locally
 
-Tracing colors the real Gurmukhi glyph. Games include Balloon Pop, Find Object, Match Pairs, Ginti Safari, and Draw & Guess.
+**Prerequisites:**  Node.js
+
+
+1. Install dependencies:
+   `npm install`
+2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+3. Run the app:
+   `npm run dev`
