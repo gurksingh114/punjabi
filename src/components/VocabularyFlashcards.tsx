@@ -10,7 +10,7 @@ import {
 import { VOCAB_CATEGORIES, VOCABULARY_WORDS } from '../data/punjabiData';
 import { VocabCategory, VocabWord } from '../types';
 import { 
-  speakPunjabi, 
+  speakWord, 
   playChime, 
   speakPraise 
 } from '../utils/audio';
@@ -34,9 +34,7 @@ export const VocabularyFlashcards: React.FC<VocabularyFlashcardsProps> = ({
 
   const handleSpeakWord = (word: VocabWord, isSlow = false) => {
     playChime();
-    const rate = isSlow ? 0.65 : 0.82;
-    // Speak Gurmukhi text and English
-    speakPunjabi(`${word.gurmukhi}`, 1.12, rate);
+    void speakWord(word, true);
     onWordExplored(word);
 
     if (Math.random() > 0.65) {

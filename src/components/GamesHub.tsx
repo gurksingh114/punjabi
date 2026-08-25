@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { GURMUKHI_LETTERS, VOCABULARY_WORDS, GURMUKHI_NUMBERS } from '../data/punjabiData';
 import { GameType, GurmukhiLetter, VocabWord } from '../types';
+import { DrawGuessGame } from './DrawGuessGame';
 import { 
   playPop, 
   playSuccessChime, 
@@ -69,7 +70,7 @@ export const GamesHub: React.FC<GamesHubProps> = ({ onGameCompleted }) => {
     setFeedback(null);
 
     setTimeout(() => {
-      speakPunjabi(`ਲੱਭੋ ਅੱਖਰ ${target.letter}, ${target.name}`, 1.1, 0.82);
+      speakPunjabi(`ਲੱਭੋ ਅੱਖਰ ${target.gurmukhiName}`);
     }, 200);
   }, []);
 
@@ -100,7 +101,7 @@ export const GamesHub: React.FC<GamesHubProps> = ({ onGameCompleted }) => {
       }, 1600);
     } else {
       playBoing();
-      speakPunjabi(`ਇਹ ${balloon.letter.letter} ਹੈ, ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ`, 1.05, 0.85);
+      speakPunjabi(`ਇਹ ${balloon.letter.gurmukhiName} ਏ। ਫੇਰ ਕਰ ਕੇ ਵੇਖੋ।`);
       setFeedback({ isCorrect: false, message: `Try again! That was ${balloon.letter.letter} (${balloon.letter.name})` });
     }
   };
@@ -215,7 +216,7 @@ export const GamesHub: React.FC<GamesHubProps> = ({ onGameCompleted }) => {
     setFeedback(null);
 
     setTimeout(() => {
-      speakPunjabi(`ਕਿੱਥੇ ਹੈ ${target.gurmukhi}, ${target.roman}?`, 1.1, 0.82);
+      speakPunjabi(`${target.gurmukhi} ਕਿੱਥੇ ਏ?`);
     }, 200);
   }, []);
 
@@ -235,7 +236,7 @@ export const GamesHub: React.FC<GamesHubProps> = ({ onGameCompleted }) => {
       }, 1800);
     } else {
       playBoing();
-      speakPunjabi(`ਇਹ ${option.gurmukhi} ਹੈ। ਦੁਬਾਰਾ ਲੱਭੋ!`, 1.05, 0.85);
+      speakPunjabi(`ਇਹ ${option.gurmukhi} ਏ। ਫੇਰ ਲੱਭੋ।`);
       setFeedback({ isCorrect: false, message: `That was ${option.gurmukhi} (${option.english}). Try again!` });
     }
   };
@@ -259,7 +260,7 @@ export const GamesHub: React.FC<GamesHubProps> = ({ onGameCompleted }) => {
     setFeedback(null);
 
     setTimeout(() => {
-      speakPunjabi(`ਚਲੋ ਗਿਣਤੀ ਕਰੀਏ: ${count}`, 1.1, 0.82);
+      speakPunjabi("ਆਓ ਗਿਣੀਏ ਜੀ।");
     }, 200);
   }, []);
 
@@ -271,7 +272,7 @@ export const GamesHub: React.FC<GamesHubProps> = ({ onGameCompleted }) => {
 
     const numberItem = GURMUKHI_NUMBERS[nextCount - 1];
     playPop();
-    speakPunjabi(`${numberItem.char} (${numberItem.name})`, 1.15, 0.85);
+    speakPunjabi(numberItem.gurmukhiName.split(" ")[0]);
 
     if (nextCount === targetCount) {
       setTimeout(() => {
@@ -314,12 +315,13 @@ export const GamesHub: React.FC<GamesHubProps> = ({ onGameCompleted }) => {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
           {[
-            { id: 'balloon-pop', label: 'Balloon Pop', gurmukhi: 'ਗੁਬਾਰੇ ਫੋੜੋ', icon: '🎈', activeColor: 'bg-rose-500 text-white' },
-            { id: 'find-object', label: 'Find Object', gurmukhi: 'ਲੱਭੋ', icon: '🔍', activeColor: 'bg-amber-500 text-white' },
-            { id: 'memory-match', label: 'Match Pairs', gurmukhi: 'ਜੋੜੇ ਮਿਲਾਓ', icon: '🃏', activeColor: 'bg-emerald-500 text-white' },
-            { id: 'counting-safari', label: 'Ginti Safari', gurmukhi: 'ਗਿਣਤੀ ੧-੧੦', icon: '🔢', activeColor: 'bg-blue-500 text-white' },
+            { id: 'balloon-pop', label: 'Balloon Pop', gurmukhi: 'ਗੁਬਾਰੇ ਫੋੜੋ', icon: '🎈', activeColor: 'bg-saffron text-white' },
+            { id: 'find-object', label: 'Find Object', gurmukhi: 'ਲੱਭੋ', icon: '🔍', activeColor: 'bg-saffron text-white' },
+            { id: 'memory-match', label: 'Match Pairs', gurmukhi: 'ਜੋੜੇ ਮਿਲਾਓ', icon: '🃏', activeColor: 'bg-saffron text-white' },
+            { id: 'counting-safari', label: 'Ginti Safari', gurmukhi: 'ਗਿਣਤੀ ੧-੧੦', icon: '🔢', activeColor: 'bg-saffron text-white' },
+            { id: 'draw-guess', label: 'Draw & Guess', gurmukhi: 'ਲਿਖੋ ਪਛਾਣੋ', icon: '✏️', activeColor: 'bg-saffron text-white' },
           ].map((g) => {
             const isSelected = selectedGame === g.id;
             return (
@@ -388,7 +390,9 @@ export const GamesHub: React.FC<GamesHubProps> = ({ onGameCompleted }) => {
             
             <button
               id="repeat-balloon-audio-btn"
-              onClick={() => speakPunjabi(`ਲੱਭੋ ਅੱਖਰ ${targetLetter.letter}, ${targetLetter.name}`, 1.1, 0.82)}
+              onClick={() =>
+                speakPunjabi(`ਲੱਭੋ ਅੱਖਰ ${targetLetter.gurmukhiName}`)
+              }
               className="mt-1 px-3 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs inline-flex items-center gap-1 cursor-pointer transition-colors"
             >
               <Volume2 className="w-3.5 h-3.5" />
@@ -510,7 +514,9 @@ export const GamesHub: React.FC<GamesHubProps> = ({ onGameCompleted }) => {
 
             <button
               id="repeat-quiz-prompt-btn"
-              onClick={() => speakPunjabi(`ਕਿੱਥੇ ਹੈ ${quizWord.gurmukhi}, ${quizWord.roman}?`, 1.1, 0.82)}
+              onClick={() =>
+                speakPunjabi(`${quizWord.gurmukhi} ਕਿੱਥੇ ਏ?`)
+              }
               className="mt-1 btn-primary px-4 py-1.5 rounded-xl text-xs font-bold text-white inline-flex items-center gap-1.5 cursor-pointer"
             >
               <Volume2 className="w-3.5 h-3.5" />
@@ -606,6 +612,10 @@ export const GamesHub: React.FC<GamesHubProps> = ({ onGameCompleted }) => {
           </div>
 
         </div>
+      )}
+
+      {selectedGame === "draw-guess" && (
+        <DrawGuessGame onGameCompleted={onGameCompleted} />
       )}
 
     </div>

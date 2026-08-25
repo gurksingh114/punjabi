@@ -341,8 +341,8 @@ export const GURMUKHI_LETTERS: GurmukhiLetter[] = [
     name: 'Dhadha',
     gurmukhiName: 'ਧੱਧਾ',
     phoneticSound: 'Dha',
-    exampleWord: 'ਧਨੁਸ਼',
-    exampleRoman: 'Dhanush',
+    exampleWord: 'ਧਣੁਖ',
+    exampleRoman: 'Dhanukh',
     exampleEnglish: 'Bow',
     exampleEmoji: '🏹',
     category: 'consonant',
@@ -763,8 +763,8 @@ export const VOCAB_CATEGORIES: VocabCategoryInfo[] = [
   {
     id: 'family',
     nameEnglish: 'Family',
-    nameGurmukhi: 'ਪਰਿਵਾਰ',
-    nameRoman: 'Parivaar',
+    nameGurmukhi: 'ਟੱਬਰ',
+    nameRoman: 'Tabbar',
     emoji: '👨‍👩‍👧‍👦',
     bgGradient: 'from-pink-400 to-rose-500',
     accentColor: 'border-pink-400 bg-pink-50 text-pink-900'
@@ -781,8 +781,8 @@ export const VOCAB_CATEGORIES: VocabCategoryInfo[] = [
   {
     id: 'vehicles',
     nameEnglish: 'Vehicles',
-    nameGurmukhi: 'ਵਾਹਨ',
-    nameRoman: 'Vaahan',
+    nameGurmukhi: 'ਗੱਡੀਆਂ',
+    nameRoman: 'Gaddian',
     emoji: '🚜',
     bgGradient: 'from-yellow-400 to-amber-600',
     accentColor: 'border-yellow-400 bg-yellow-50 text-yellow-900'
@@ -811,7 +811,7 @@ export const VOCABULARY_WORDS: VocabWord[] = [
   { id: 'a6', category: 'animals', gurmukhi: 'ਮੋਰ', roman: 'Mor', english: 'Peacock', emoji: '🦚', soundEffect: 'animal', funFact: 'ਪੰਜਾਬ ਦਾ ਸੋਹਣਾ ਪੰਛੀ (Beautiful dancer)' },
   { id: 'a7', category: 'animals', gurmukhi: 'ਗਾਂ', roman: 'Gaan', english: 'Cow', emoji: '🐄', soundEffect: 'animal', funFact: 'ਮੀਠਾ ਦੁੱਧ ਦਿੰਦੀ ਹੈ (Gives sweet milk)' },
   { id: 'a8', category: 'animals', gurmukhi: 'ਤੋਤਾ', roman: 'Tota', english: 'Parrot', emoji: '🦜', soundEffect: 'animal', funFact: 'ਹਰਾ ਤੋਤਾ ਲਾਲ ਚੁੰਝ (Green body, red beak)' },
-  { id: 'a9', category: 'animals', gurmukhi: 'ਖਰਗੋਸ਼', roman: 'Khargosh', english: 'Rabbit', emoji: '🐇', soundEffect: 'animal', funFact: 'ਚਿੱਟਾ ਨਰਮ ਖਰਗੋਸ਼ (Fluffy soft bunny)' },
+  { id: 'a9', category: 'animals', gurmukhi: 'ਸਸਾ', roman: 'Sassa', english: 'Rabbit', emoji: '🐇', soundEffect: 'animal', funFact: 'ਚਿੱਟਾ ਨਰਮ ਸਸਾ (Fluffy soft bunny)' },
   { id: 'a10', category: 'animals', gurmukhi: 'ਬਾਂਦਰ', roman: 'Baandar', english: 'Monkey', emoji: '🐒', soundEffect: 'animal', funFact: 'ਛਾਲਾਂ ਮਾਰਦਾ (Jumping around)' },
   { id: 'a11', category: 'animals', gurmukhi: 'ਊਠ', roman: 'Ooth', english: 'Camel', emoji: '🐪', soundEffect: 'animal', funFact: 'ਲੰਮੀ ਧੌਣ ਵਾਲਾ (Tall neck friend)' },
   { id: 'a12', category: 'animals', gurmukhi: 'ਬਤਖ', roman: 'Batakh', english: 'Duck', emoji: '🦆', soundEffect: 'animal', funFact: 'ਕੁਐਕ ਕੁਐਕ (Quack quack in water)' },
@@ -835,7 +835,7 @@ export const VOCABULARY_WORDS: VocabWord[] = [
   { id: 'v4', category: 'vegetables', gurmukhi: 'ਮਟਰ', roman: 'Matar', english: 'Peas', emoji: '🟢', funFact: 'ਹਰੇ ਹਰੇ ਮੋਤੀ (Green little peas)' },
   { id: 'v5', category: 'vegetables', gurmukhi: 'ਪਿਆਜ਼', roman: 'Pyaaz', english: 'Onion', emoji: '🧅', funFact: 'ਤੜਕੇ ਦਾ ਸਵਾਦ (Flavor of tadka)' },
   { id: 'v6', category: 'vegetables', gurmukhi: 'ਭਿੰਡੀ', roman: 'Bhindi', english: 'Okra / Ladyfinger', emoji: '🥬', funFact: 'ਕਰੰਚੀ ਭਿੰਡੀ (Crispy ladyfinger)' },
-  { id: 'v7', category: 'vegetables', gurmukhi: 'ਬੈਂਗਣ', roman: 'Baingan', english: 'Eggplant / Brinjal', emoji: '🍆', funFact: 'ਤਾਜ ਵਾਲਾ ਬੈਂਗਣ (Veggie with a crown)' },
+  { id: 'v7', category: 'vegetables', gurmukhi: 'ਭਾਂਟਾ', roman: 'Bhaantha', english: 'Eggplant / Brinjal', emoji: '🍆', funFact: 'ਤਾਜ ਵਾਲਾ ਭਾਂਟਾ (Veggie with a crown)' },
   { id: 'v8', category: 'vegetables', gurmukhi: 'ਮੱਕੀ', roman: 'Makki', english: 'Corn', emoji: '🌽', funFact: 'ਮੱਕੀ ਦੀ ਰੋਟੀ (Famous Punjabi corn bread)' },
 
   // 4. Colors (ਰੰਗ)
@@ -864,7 +864,7 @@ export const VOCABULARY_WORDS: VocabWord[] = [
 
   // 6. Family (ਪਰਿਵਾਰ)
   { id: 'fam1', category: 'family', gurmukhi: 'ਮੰਮੀ / ਮਾਂ', roman: 'Mummy / Maa', english: 'Mother', emoji: '👩', funFact: 'ਪਿਆਰੀ ਮਾਂ (Sweetest mom)' },
-  { id: 'fam2', category: 'family', gurmukhi: 'ਪਾਪਾ / ਪਿਤਾ', roman: 'Papa / Pita', english: 'Father', emoji: '👨', funFact: 'ਸਾਡੇ ਪਾਪਾ ਸੁਪਰ ਹੀਰੋ (Our superhero dad)' },
+  { id: 'fam2', category: 'family', gurmukhi: 'ਬਾਪੂ / ਪਿਓ', roman: 'Baapu / Pio', english: 'Father', emoji: '👨', funFact: 'ਸਾਡੇ ਬਾਪੂ ਸੁਪਰ ਹੀਰੋ (Our superhero dad)' },
   { id: 'fam3', category: 'family', gurmukhi: 'ਦਾਦਾ ਜੀ', roman: 'Daada Ji', english: 'Paternal Grandfather', emoji: '👴', funFact: 'ਕਹਾਣੀਆਂ ਸੁਣਾਉਂਦੇ ਨੇ (Tells great bedtime stories)' },
   { id: 'fam4', category: 'family', gurmukhi: 'ਦਾਦੀ ਜੀ', roman: 'Daadi Ji', english: 'Paternal Grandmother', emoji: '👵', funFact: 'ਮਿੱਠਾ ਪਿਆਰ ਤੇ ਲੱਡੂ (Sweet love and sweets)' },
   { id: 'fam5', category: 'family', gurmukhi: 'ਨਾਨਾ ਜੀ', roman: 'Naana Ji', english: 'Maternal Grandfather', emoji: '👳', funFact: 'ਨਾਨਕੇ ਘਰ ਦਾ ਮੇਲਾ (Grandpa love)' },
@@ -893,7 +893,7 @@ export const VOCABULARY_WORDS: VocabWord[] = [
   { id: 'vh7', category: 'vehicles', gurmukhi: 'ਬੇੜੀ / ਕਿਸ਼ਤੀ', roman: 'Bedi / Kishti', english: 'Boat', emoji: '⛵', soundEffect: 'vehicle', funFact: 'ਪਾਣੀ ਵਿੱਚ ਤਰਦੀ (Floating on water)' },
 
   // 9. Daily Items & Culture (ਰੋਜ਼ਾਨਾ ਚੀਜ਼ਾਂ)
-  { id: 'd1', category: 'daily', gurmukhi: 'ਪਤੰਗ', roman: 'Patang', english: 'Kite', emoji: '🪁', funFact: 'ਲੋਹੜੀ ਤੇ ਬਸੰਤ ਦੀ ਸ਼ਾਨ (Flies high in Basant)' },
+  { id: 'd1', category: 'daily', gurmukhi: 'ਗੁੱਡੀ', roman: 'Guddi', english: 'Kite', emoji: '🪁', funFact: 'ਲੋਹੜੀ ਤੇ ਬਸੰਤ ਦੀ ਸ਼ਾਨ (Flies high in Basant)' },
   { id: 'd2', category: 'daily', gurmukhi: 'ਢੋਲ', roman: 'Dhol', english: 'Dhol / Drum', emoji: '🥁', funFact: 'ਢਮ ਢਮ ਵੱਜਦਾ (Bhangra beat drum)' },
   { id: 'd3', category: 'daily', gurmukhi: 'ਦਸਤਾਰ / ਪੱਗ', roman: 'Dastaar / Pagg', english: 'Turban', emoji: '👳', funFact: 'ਪੰਜਾਬ ਦੀ ਸ਼ਾਨ ਤੇ ਤਾਜ (Pride of Punjab)' },
   { id: 'd4', category: 'daily', gurmukhi: 'ਸੂਰਜ', roman: 'Sooraj', english: 'Sun', emoji: '☀️', funFact: 'ਸਵੇਰੇ ਚੜ੍ਹਦਾ ਸੂਰਜ (Bright morning sun)' },
@@ -960,7 +960,7 @@ export const STICKER_REWARDS: StickerReward[] = [
   {
     id: 'stk-patang',
     title: 'Basant Kite',
-    gurmukhiTitle: 'ਉੱਡਦੀ ਪਤੰਗ',
+    gurmukhiTitle: 'ਉੱਡਦੀ ਗੁੱਡੀ',
     emoji: '🪁',
     description: 'Pop 10 balloons in Balloon Game!',
     unlocked: false,
@@ -1047,8 +1047,8 @@ export const TODDLER_RHYMES: ToddlerRhyme[] = [
         durationMs: 3000
       },
       {
-        gurmukhi: 'ਅੰਬ ਹੈ ਸਾਰੇ ਫਲਾਂ ਦਾ ਰਾਜਾ!',
-        roman: 'Amb hai saare phalan da raja!',
+        gurmukhi: 'ਅੰਬ ਏ ਸਾਰੇ ਫਲਾਂ ਦਾ ਰਾਜਾ!',
+        roman: 'Amb ae saare phalan da raja!',
         english: 'Mango is indeed the king of fruits!',
         emoji: '👑',
         durationMs: 3200

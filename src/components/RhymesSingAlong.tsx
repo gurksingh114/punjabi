@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Play, Pause, RotateCcw, Volume2 } from 'lucide-react';
 import { TODDLER_RHYMES } from '../data/punjabiData';
 import { ToddlerRhyme } from '../types';
-import { speakPunjabi, playDholBeat, playChime, playCelebration } from '../utils/audio';
+import { speakPunjabi, playDholBeat, playChime, playCelebration, stopVoice } from '../utils/audio';
 
 interface RhymesSingAlongProps {
   onRhymeCompleted: () => void;
@@ -12,21 +12,18 @@ export const RhymesSingAlong: React.FC<RhymesSingAlongProps> = ({ onRhymeComplet
   const [selectedRhyme, setSelectedRhyme] = useState<ToddlerRhyme>(TODDLER_RHYMES[0]);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentLineIndex, setCurrentLineIndex] = useState<number>(0);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const playingRef = useRef(false);
 
   const stopPlayback = () => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-    }
+    playingRef.current = false;
+    stopVoice();
     setIsPlaying(false);
   };
 
-  const playLine = (index: number) => {
+  const playLine = async (index: number) => {
+    if (!playingRef.current) return;
     if (index >= selectedRhyme.lines.length) {
+      playingRef.current = false;
       setIsPlaying(false);
       playCelebration();
       onRhymeCompleted();
@@ -36,20 +33,21 @@ export const RhymesSingAlong: React.FC<RhymesSingAlongProps> = ({ onRhymeComplet
     setCurrentLineIndex(index);
     const line = selectedRhyme.lines[index];
 
-    playDholBeat('dha');
-    setTimeout(() => playDholBeat('ge'), 350);
+    playDholBeat("dha");
+    window.setTimeout(() => {
+      if (playingRef.current) playDholBeat("ge");
+    }, 350);
 
-    speakPunjabi(line.gurmukhi, 1.15, 0.78);
-
-    timerRef.current = setTimeout(() => {
-      playLine(index + 1);
-    }, line.durationMs || 3200);
+    await speakPunjabi(`<slow>${line.gurmukhi}</slow>`);
+    if (!playingRef.current) return;
+    await playLine(index + 1);
   };
 
   const handleStartRhyme = () => {
     playChime();
+    playingRef.current = true;
     setIsPlaying(true);
-    playLine(0);
+    void playLine(0);
   };
 
   const handlePause = () => {
@@ -170,7 +168,7 @@ export const RhymesSingAlong: React.FC<RhymesSingAlongProps> = ({ onRhymeComplet
                 onClick={() => {
                   stopPlayback();
                   setCurrentLineIndex(idx);
-                  speakPunjabi(line.gurmukhi, 1.15, 0.78);
+                  speakPunjabi(`<slow>${line.gurmukhi}</slow>`);
                   playDholBeat('dha');
                 }}
                 className={`rounded-2xl p-3.5 transition-all duration-200 flex items-center justify-between gap-3 cursor-pointer border ${

@@ -14,6 +14,7 @@ interface PlacedSticker {
   instanceId: string;
   emoji: string;
   title: string;
+  spoken: string;
   x: number;
   y: number;
   scale: number;
@@ -21,14 +22,14 @@ interface PlacedSticker {
 
 export const StickerBook: React.FC<StickerBookProps> = ({ unlockedStickers, starsCount }) => {
   const [placedStickers, setPlacedStickers] = useState<PlacedSticker[]>([
-    { instanceId: 'init-1', emoji: '🦁', title: 'Brave Lion', x: 25, y: 35, scale: 1.2 },
-    { instanceId: 'init-2', emoji: '🚜', title: 'Tractor', x: 65, y: 45, scale: 1.1 },
-    { instanceId: 'init-3', emoji: '☀️', title: 'Sun', x: 80, y: 15, scale: 1.3 }
+    { instanceId: 'init-1', emoji: '🦁', title: 'Brave Lion', spoken: 'ਬੱਬਰ ਸ਼ੇਰ', x: 25, y: 35, scale: 1.2 },
+    { instanceId: 'init-2', emoji: '🚜', title: 'Tractor', spoken: 'ਟਰੈਕਟਰ', x: 65, y: 45, scale: 1.1 },
+    { instanceId: 'init-3', emoji: '☀️', title: 'Sun', spoken: 'ਸੂਰਜ', x: 80, y: 15, scale: 1.3 }
   ]);
 
   const handlePlaceSticker = (sticker: StickerReward) => {
     if (!unlockedStickers.includes(sticker.id)) {
-      speakPunjabi(`ਇਹ ਸਟਿੱਕਰ ਖੇਡ ਕੇ ਖੋਲ੍ਹੋ!`, 1.1, 0.82);
+      speakPunjabi("ਇਹ ਸਟਿੱਕਰ ਖੇਡ ਕੇ ਖੋਲ੍ਹੋ।");
       return;
     }
 
@@ -37,13 +38,14 @@ export const StickerBook: React.FC<StickerBookProps> = ({ unlockedStickers, star
       instanceId: `placed-${Date.now()}-${Math.random()}`,
       emoji: sticker.emoji,
       title: sticker.title,
+      spoken: sticker.gurmukhiTitle,
       x: 20 + Math.random() * 60,
       y: 20 + Math.random() * 50,
       scale: 1 + Math.random() * 0.3
     };
 
     setPlacedStickers((prev) => [...prev, newSticker]);
-    speakPunjabi(`${sticker.gurmukhiTitle}!`, 1.15, 0.85);
+    speakPunjabi(`${sticker.gurmukhiTitle}!`);
 
     confetti({
       particleCount: 30,
@@ -186,7 +188,7 @@ export const StickerBook: React.FC<StickerBookProps> = ({ unlockedStickers, star
               }}
               onClick={() => {
                 playPop();
-                speakPunjabi(item.title, 1.15, 0.85);
+                speakPunjabi(item.spoken, 1.15, 0.85);
               }}
               className="absolute cursor-pointer select-none hover:scale-125 active:scale-95 transition-transform duration-150 filter drop-shadow-sm"
               title={`Tap to hear: ${item.title}`}
